@@ -1,0 +1,51 @@
+#cloud-config
+write_files:
+  - path: /home/Dockerfile
+    content: |
+      # Use the official AlmaLinux image as the base image
+      FROM almalinux:latest
+
+      # Set environment variables
+      ENV USER=gitea \
+          GITEA_CUSTOM=/var/lib/gitea/custom \
+          GITEA_WORK_DIR=/var/lib/gitea \
+          GITEA_LOG_ROOT_PATH=/var/lib/gitea/log
+
+      # Install dependencies
+      RUN dnf update -y && \
+          dnf install -y git sqlite wget curl --allowerasing && \
+          dnf clean all
+
+      # Create gitea user and necessary directories
+      RUN useradd -m -s /bin/bash -r $USER && \
+          mkdir -p /var/lib/gitea/{custom,data,log} /etc/gitea && \
+          chown -R $USER: /var/lib/gitea /etc/gitea && \
+          chmod -R 750 /var/lib/gitea && \
+          chmod 770 /etc/gitea
+
+      # Download Gitea binary
+      RUN wget -O /usr/local/bin/gitea https://dl.gitea.io/gitea/1.21.11/gitea-1.21.11-linux-amd64 && \
+          chmod +x /usr/local/bin/gitea
+
+      # Set the user and workdir
+      USER $USER
+      WORKDIR /var/lib/gitea
+
+      # Expose HTTP port
+      EXPOSE 3000
+
+      # Start Gitea
+      ENTRYPOINT ["/usr/local/bin/gitea", "web"]
+
+runcmd:
+  - echo hi > /home/hello
+  - apt-get update -y
+  - apt-get install ca-certificates curl -y
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null'
+  - apt-get update -y
+  - apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+  - docker build -t alex_gitea /home
+  - docker run -d --name gitea -p 3000:3000 alex_gitea
