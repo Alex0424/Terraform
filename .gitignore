@@ -46,3 +46,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Credentials
+dovekey
+private_ips.txt
